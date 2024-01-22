@@ -32,4 +32,7 @@ const productSchema = new mongoose.Schema({
 
 });
 
+productSchema.index({ category: 1 });
+productSchema.index({ subcategory: 1 });
+
 module.exports = connection.model('Product', productSchema);
