@@ -1,59 +1,34 @@
 const path = require('path');
 const Koa = require('koa');
 const Router = require('koa-router');
-const Session = require('./models/Session');
-const {v4: uuid} = require('uuid');
 const handleMongooseValidationError = require('./libs/validationErrors');
 const mustBeAuthenticated = require('./libs/mustBeAuthenticated');
-const {login} = require('./controllers/login');
-const {oauth, oauthCallback} = require('./controllers/oauth');
-const {me} = require('./controllers/me');
+const { login } = require('./controllers/login');
+const { oauth, oauthCallback } = require('./controllers/oauth');
+const { me } = require('./controllers/me');
+const loginContextExtension = require('./middlewares/login-context-extension');
+const commonErrorHandler = require('./middlewares/common-error-handler');
+const sessionValidation = require('./middlewares/session-validation');
 
 const app = new Koa();
 
 app.use(require('koa-static')(path.join(__dirname, 'public')));
 app.use(require('koa-bodyparser')());
 
-app.use(async (ctx, next) => {
-  try {
-    await next();
-  } catch (err) {
-    if (err.status) {
-      ctx.status = err.status;
-      ctx.body = {error: err.message};
-    } else {
-      console.error(err);
-      ctx.status = 500;
-      ctx.body = {error: 'Internal server error'};
-    }
-  }
-});
+app.use(commonErrorHandler);
 
-app.use((ctx, next) => {
-  ctx.login = async function(user) {
-    const token = uuid();
+app.use(loginContextExtension);
 
-    return token;
-  };
+const router = new Router({ prefix: '/api' });
 
-  return next();
-});
-
-const router = new Router({prefix: '/api'});
-
-router.use(async (ctx, next) => {
-  const header = ctx.request.get('Authorization');
-  if (!header) return next();
-
-  return next();
-});
+router.use(sessionValidation);
 
 router.post('/login', login);
 
 router.get('/oauth/:provider', oauth);
 router.post('/oauth_callback', handleMongooseValidationError, oauthCallback);
 
-router.get('/me', me);
+router.get('/me', mustBeAuthenticated, me);
 
 app.use(router.routes());
 
