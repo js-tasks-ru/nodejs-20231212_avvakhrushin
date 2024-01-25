@@ -1,9 +1,6 @@
 const User = require('../../models/User');
 
 module.exports = async function authenticate(strategy, email, displayName, done) {
-
-  debugger;
-
   if (!email) {
     return done(null, false, 'Не указан email');
   }
